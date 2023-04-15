@@ -1,18 +1,23 @@
 import java.util.*;
+import java.util.concurrent.*;
 
 public class Main {
 
-    private static List<Thread> threads = new ArrayList<>();
+    static ExecutorService threadPool = Executors.newFixedThreadPool(5);
+    static List<Future> list = new ArrayList<>();
+    static Future<String> task;
 
-    public static void main(String[] args) throws InterruptedException {
+
+    public static void main(String[] args) throws InterruptedException, ExecutionException {
         String[] texts = new String[25];
         for (int i = 0; i < texts.length; i++) {
             texts[i] = generateText("aab", 30_000);
         }
 
         long startTs = System.currentTimeMillis(); // start time
+        Callable callable = null;
         for (String text : texts) {
-            Runnable runnable = () -> {
+            callable = () -> {
                 int maxSize = 0;
                 for (int i = 0; i < text.length(); i++) {
                     for (int j = 0; j < text.length(); j++) {
@@ -31,18 +36,25 @@ public class Main {
                         }
                     }
                 }
-                System.out.println(text.substring(0, 100) + " -> " + maxSize);
+                return text.substring(0, 100) + " -> " + maxSize;
             };
-            Thread thread = new Thread(runnable);
-            threads.add(thread);
-            thread.start();
+
+            task = threadPool.submit(callable);
+            list.add(task);
         }
         long endTs = System.currentTimeMillis(); // end time
+
+        for (int i = 0; i < list.size(); i++) {
+            String resultOfTask = String.valueOf(list.get(i).get());
+            System.out.println(resultOfTask);
+        }
+
+
+        threadPool.shutdown();
+
+
         System.out.println("Time: " + (endTs - startTs) + "ms");
 
-        for (Thread thread : threads) {
-            thread.join(); // зависаем, ждём когда поток объект которого лежит в thread завершится
-        }
     }
 
     public static String generateText(String letters, int length) {
